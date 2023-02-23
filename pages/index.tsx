@@ -1,17 +1,14 @@
-import Head from 'next/head'
+import type { NextPage } from 'next'
+import Layout from '@/components/layout'
+import Listing from '@/components/product/Listing'
 
-export default function Home() {
+const Home: NextPage = () => {
   return (
-    <>
-      <Head>
-        <title>Neu Ecommerce</title>
-        <meta name="description" content="Ecommerce app" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
-      <h1 className="text-3xl font-bold underline">
-        Getting Started
-      </h1>
-    </>
+    <div className="w-full">
+      <Layout />
+      <Listing />
+    </div>
   )
 }
+
+export default Home
