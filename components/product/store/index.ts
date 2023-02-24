@@ -52,14 +52,14 @@ export const useProductStore = create<{
             newC.push({ ...get().getProductInfo(id), qty: 1 })
         }
         console.log("add:newCart::", newC)
-        set((state) => ({ cart: newC, cartCount: newC.length }))
+        set((state) => ({ cart: newC, cartCount: newC.reduce((a, b) => a + (b.qty ? b.qty : 0), 0) }))
     },
 
     removeFromCart: (id: number) => {
         let newCart = get().cart;
         newCart = newCart.filter(pinfo => pinfo.id !== id)
         console.log("rm:newCart::", newCart)
-        set((state) => ({ cart: newCart, cartCount: newCart.length }))
+        set((state) => ({ cart: newCart, cartCount: newCart.reduce((a, b) => a + (b.qty ? b.qty : 0), 0) }))
     },
 
     toggleCart: () => {
