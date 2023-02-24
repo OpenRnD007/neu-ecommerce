@@ -17,20 +17,41 @@ export interface ICart extends IProduct {
 
 export const useProductStore = create<{
     products: IProduct[];
+    cart: ICart[];
+    showCart: boolean;
+    cartCount: number;
+    isloading: boolean;
+    subtotal: string;
+    total: string;
+    discount: string;
+    discountCode: string;
+    cid: string;
+
     setProducts: (products: IProduct[]) => void;
     getProductInfo: (id: number) => IProduct;
     setLoader: (status: boolean) => void;
-
-    cart: ICart[];
-    showCart: boolean;
     addToCart: (id: number) => void;
     removeFromCart: (id: number) => void;
+    setCid: (id: string) => void;
     toggleCart: () => void;
-    cartCount: number;
-    isloading: boolean;
+    setDiscount: (val: string, code: string) => void;
+    reset: () => void;
 }>((set, get) => ({
 
     products: [],
+    cart: [],
+    showCart: false,
+    cartCount: 0,
+    isloading: false,
+    subtotal: "0",
+    total: "0",
+    discount: "0",
+    discountCode: "",
+    cid: "",
+
+    setCid: (result) => {
+        set((state) => ({ "cid": result }))
+    },
 
     setProducts: (result) => {
         set((state) => ({ "products": result }))
@@ -41,8 +62,7 @@ export const useProductStore = create<{
     setLoader: (status: boolean) => {
         set((state) => ({ isloading: status }))
     },
-    cart: [],
-    showCart: false,
+
     addToCart: (id: number) => {
         const newC = get().cart
         const currentProduct = newC.find(item => item.id === id);
@@ -52,19 +72,40 @@ export const useProductStore = create<{
             newC.push({ ...get().getProductInfo(id), qty: 1 })
         }
         console.log("add:newCart::", newC)
-        set((state) => ({ cart: newC, cartCount: newC.reduce((a, b) => a + (b.qty ? b.qty : 0), 0) }))
+        const subtotal = newC.reduce((prev, current) => prev + (current.price * current.qty!), 0).toFixed(2)
+        const total = (parseFloat(subtotal) + parseFloat(get().discount ?? "0")).toFixed(2)
+        set((state) => ({ cart: newC, subtotal, total, cartCount: newC.reduce((a, b) => a + (b.qty ? b.qty : 0), 0) }))
     },
 
     removeFromCart: (id: number) => {
         let newCart = get().cart;
         newCart = newCart.filter(pinfo => pinfo.id !== id)
         console.log("rm:newCart::", newCart)
-        set((state) => ({ cart: newCart, cartCount: newCart.reduce((a, b) => a + (b.qty ? b.qty : 0), 0) }))
+        const subtotal = newCart.reduce((prev, current) => prev + (current.price * current.qty!), 0).toFixed(2)
+        const total = (parseFloat(subtotal) + parseFloat(get().discount ?? "0")).toFixed(2)
+        set((state) => ({ cart: newCart, subtotal, total, cartCount: newCart.reduce((a, b) => a + (b.qty ? b.qty : 0), 0) }))
     },
 
     toggleCart: () => {
         set((state) => ({ showCart: !state.showCart }))
     },
-    cartCount: 0,
-    isloading: false
+
+    setDiscount: (val: string, discountCode: string) => {
+        const subtotal = get().cart.reduce((prev, current) => prev + (current.price * current.qty!), 0).toFixed(2)
+        const total = (parseFloat(subtotal) + (val ? parseFloat(val) : 0)).toFixed(2)
+        set((state) => ({ subtotal, total, discount: val, discountCode }))
+    },
+
+    reset: () => {
+        set((state) => ({
+            cart: [],
+            showCart: false,
+            cartCount: 0,
+            subtotal: "0",
+            total: "0",
+            discount: "0",
+            discountCode: "",
+            cid:""
+        }))
+    }
 }));

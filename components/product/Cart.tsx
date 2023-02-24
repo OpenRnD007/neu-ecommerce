@@ -2,9 +2,9 @@ import React, { Fragment, useRef } from 'react'
 import { toast } from 'react-toastify';
 import { Dialog, Transition } from '@headlessui/react'
 import { ICart, useProductStore } from './store';
+import { getDiscountCoupon, placeOrder } from './store/apireq';
 
 const Cart = () => {
-    const products = useProductStore((state) => state.cart);
     const showCart = useProductStore((state) => state.showCart);
     const toggleCart = useProductStore((state) => state.toggleCart);
 
@@ -39,9 +39,9 @@ const Cart = () => {
                                     <div className="flex h-full flex-col overflow-y-scroll bg-white shadow-xl">
                                         <div className="flex-1 overflow-y-auto py-6 px-4 sm:px-6">
                                             <CartHeader />
-                                            <CartProducts products={products} />
+                                            <CartProducts />
                                         </div>
-                                        <CartFooter products={products} />
+                                        <CartFooter />
                                     </div>
                                 </Dialog.Panel>
                             </Transition.Child>
@@ -84,26 +84,96 @@ const CartHeader = () => {
  * @param props {products: ICart[]}
  * @returns JSX.Element
  */
-const CartFooter = (props: { products: ICart[] }) => {
+const CartFooter = () => {
     const toggleCart = useProductStore((state) => state.toggleCart);
+    const subtotal = useProductStore((state) => state.subtotal);
+    const total = useProductStore((state) => state.total);
+    const discount = useProductStore((state) => state.discount);
+    const discountCode = useProductStore((state) => state.discountCode);
+    const setDiscount = useProductStore((state) => state.setDiscount);
+    const cid = useProductStore((state) => state.cid);
+    const cart = useProductStore((state) => state.cart);
+    const reset = useProductStore((state) => state.reset);
+    const showLoading = useRef<HTMLDivElement>(null);
+
+    const checkout = () => {
+        if (cart.length && showLoading && showLoading.current && showLoading.current.innerHTML === "Checkout") {
+            showLoading.current.innerHTML = "Loading..."
+            const data = {
+                total,
+                discount,
+                discountCode,
+                subtotal,
+                cid,
+                products: cart.map(c => ({
+                    title: c.title,
+                    qty: c.qty,
+                    price: c.price
+                }))
+            }
+
+            placeOrder(data)
+                .then(resp => {
+                    toast.success(`Your Order Placed Successfully`);
+                    reset()
+                })
+                .catch(err => {
+                    toast.error(`Something went wrong, Please try again`);
+                }).finally(() => {
+                    if (showLoading && showLoading.current) {
+                        showLoading.current.innerHTML = "Checkout"
+                    }
+                })
+        }
+    }
     return (
         <div className="border-t border-gray-200 py-6 px-4 sm:px-6">
             <div className="flex justify-between text-base font-medium text-gray-900">
+                <p>Sub Total</p>
+                <p>${subtotal ?? 0}</p>
+            </div>
+            <div className="flex justify-between text-base font-normal text-gray-900 py-1">
+                <p>Discount</p>
+                <p>${discount ?? 0}</p>
+            </div>
+            {discountCode && discountCode?.length > 0 &&
+                <div className="flex justify-between text-base font-normal text-gray-900 py-1">
+                    <p className='relative text-white text-xs bg-teal-600 py-1 px-2 rounded'>
+                        {discountCode}
+                        <svg
+                            onClick={() => setDiscount("0", "")}
+                            className="cursor-pointer text-white absolute h-4 w-3 -top-3 right-0 text-gray-900 bg-teal-600 rounded" x-description="Heroicon name: outline/x" xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            strokeWidth="2"
+                            stroke="currentColor" aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </p>
+                </div>
+            }
+            <div className="flex justify-between text-base font-normal text-gray-900 border-t py-2">
                 <p>Total</p>
-                <p>${props.products.reduce((prev, current) => prev + (current.price * current.qty!), 0).toFixed(2)}</p>
+                <p>${total ?? 0}</p>
             </div>
-            <p className="mt-0.5 text-sm text-gray-500">Free Shipping.</p>
-            <div className="mt-6">
-                <CouponCodeForm />
-            </div>
-            <div className="mt-6">
-                <a
-                    href="#"
-                    className="flex items-center justify-center rounded-md border border-transparent bg-indigo-600 px-6 py-3 text-base font-medium text-white shadow-sm hover:bg-indigo-700"
-                >
-                    Checkout
-                </a>
-            </div>
+
+            {!cid
+                ? <SelectUser />
+                : <>
+                    <div className="mt-6">
+                        {!discountCode && parseInt(total, 10) > 0 &&
+                            <CouponCodeForm />
+                        }
+                    </div>
+                    <div className="mt-6">
+                        {cart.length > 0 && <div
+                            ref={showLoading}
+                            onClick={checkout}
+                            className="cursor-pointer flex items-center justify-center rounded-md border border-transparent bg-indigo-600 px-6 py-3 text-base font-medium text-white shadow-sm hover:bg-indigo-700">
+                            Checkout
+                        </div>}
+                    </div>
+                </>}
             <div className="mt-6 flex justify-center text-center text-sm text-gray-500">
                 <p>
                     or{' '}
@@ -125,14 +195,20 @@ const CartFooter = (props: { products: ICart[] }) => {
  * @param props products: ICart[]
  * @returns JSX.Element
  */
-const CartProducts = (props: { products: ICart[] }) => {
+const CartProducts = () => {
     const removeFromCart = useProductStore((state) => state.removeFromCart);
+    const products = useProductStore((state) => state.cart);
+
+    const remove = (product: ICart) => {
+        removeFromCart(product.id)
+        toast.error(`${product.title} removed successfully from cart`);
+    }
 
     return (
         <div className="mt-8">
             <div className="flow-root">
                 <ul role="list" className="-my-6 divide-y divide-gray-200">
-                    {props.products.map((product) => (
+                    {products.map((product) => (
                         <li key={product.id} className="flex py-6">
                             <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-md border border-gray-200">
                                 <img
@@ -156,10 +232,7 @@ const CartProducts = (props: { products: ICart[] }) => {
                                 <div className="flex flex-1 items-end justify-between text-sm">
                                     <div className="flex">
                                         <button
-                                            onClick={() => {
-                                                removeFromCart(product.id)
-                                                toast.error(`${product.title} removed successfully from cart`);
-                                            }}
+                                            onClick={() => remove(product)}
                                             type="button"
                                             className="font-medium text-indigo-600 hover:text-indigo-500"
                                         >
@@ -181,32 +254,75 @@ const CartProducts = (props: { products: ICart[] }) => {
  * @returns JSX.Element
  */
 const CouponCodeForm = () => {
-    const showForm = useRef<HTMLFormElement>(null);
+    const setDiscount = useProductStore((state) => state.setDiscount);
+    const cid = useProductStore((state) => state.cid);
+    const showLoading = useRef<HTMLButtonElement>(null);
+
+    const getDC = () => {
+        if (showLoading && showLoading.current && showLoading.current.innerHTML === "Get Coupon Code") {
+            showLoading.current.innerHTML = "Loading..."
+            getDiscountCoupon(cid)
+                .then(resp => {
+                    if (resp && resp.discount) {
+                        toast.info(`${resp.discount}% Discount on this Order`);
+                        setDiscount(resp.discount, resp.success)
+                    }
+                    else {
+                        toast.error(`No Discount for this Order`);
+                    }
+                })
+                .finally(() => {
+                    if (showLoading && showLoading.current) {
+                        showLoading.current.innerHTML = "Get Coupon Code"
+                    }
+                })
+        }
+    }
+
     return (
         <React.Fragment>
             <button
+                ref={showLoading}
                 className="items-center justify-center rounded-md border border-transparent bg-teal-600 px-3 py-3 text-base font-medium text-white shadow-sm hover:bg-teal-700"
-                onClick={() => {
-                    if (showForm && showForm.current) {
-                        showForm.current.classList.toggle("hidden")
-                    }
-                }}
+                onClick={getDC}
             >Get Coupon Code</button>
+        </React.Fragment>
+    )
+}
 
-            <form ref={showForm} className="hidden w-full max-w-sm">
-                <div className="flex items-center border-b border-indigo-500 py-2">
-                    <input
-                        className="appearance-none bg-transparent border-none w-full text-gray-700 mr-3 py-1 px-2 leading-tight focus:outline-none"
-                        type="text"
-                        placeholder="Coupon"
-                        aria-label="Coupon" />
+const SelectUser = () => {
+    const setCid = useProductStore((state) => state.setCid);
+    return (
+        <div>
+            <div className='border-t py-3 text-medium'>Select User To Place Order</div>
+            <div className="flex justify-center">
+                <div className="w-96">
                     <button
-                        className="flex-shrink-0 bg-indigo-500 hover:bg-indigo-700 border-indigo-500 hover:border-indigo-700 text-sm border-4 text-white py-1 px-2 rounded"
-                        type="button">
-                        Apply
+                        onClick={() => setCid("1")}
+                        type="button"
+                        className="bg-indigo-200 block w-full cursor-pointer rounded-lg p-4 text-left transition duration-500 hover:bg-neutral-100 hover:text-neutral-500 focus:bg-neutral-100 focus:text-neutral-500 focus:ring-0">
+                        User 1
+                    </button>
+                    <button
+                        onClick={() => setCid("2")}
+                        type="button"
+                        className="mt-1 bg-indigo-200 block w-full cursor-pointer rounded-lg p-4 text-left transition duration-500 hover:bg-neutral-100 hover:text-neutral-500 focus:bg-neutral-100 focus:text-neutral-500 focus:ring-0">
+                        User 2
+                    </button>
+                    <button
+                        onClick={() => setCid("3")}
+                        type="button"
+                        className="mt-1 bg-indigo-200 block w-full cursor-pointer rounded-lg p-4 text-left transition duration-500 hover:bg-neutral-100 hover:text-neutral-500 focus:bg-neutral-100 focus:text-neutral-500 focus:ring-0">
+                        User 3
+                    </button>
+                    <button
+                        onClick={() => setCid("4")}
+                        type="button"
+                        className="mt-1 bg-indigo-200 block w-full cursor-pointer rounded-lg p-4 text-left transition duration-500 hover:bg-neutral-100 hover:text-neutral-500 focus:bg-neutral-100 focus:text-neutral-500 focus:ring-0">
+                        User 4
                     </button>
                 </div>
-            </form>
-        </React.Fragment>
+            </div>
+        </div>
     )
 }
