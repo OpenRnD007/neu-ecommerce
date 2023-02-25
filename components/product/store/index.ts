@@ -1,3 +1,4 @@
+import { calculateDiscount } from '@/components/utils';
 import { create } from 'zustand'
 
 export interface IProduct {
@@ -73,7 +74,7 @@ export const useProductStore = create<{
         }
         console.log("add:newCart::", newC)
         const subtotal = newC.reduce((prev, current) => prev + (current.price * current.qty!), 0).toFixed(2)
-        const total = (parseFloat(subtotal) + parseFloat(get().discount ?? "0")).toFixed(2)
+        const total = (calculateDiscount(get().discount ?? "0", subtotal)).toFixed(2)
         set((state) => ({ cart: newC, subtotal, total, cartCount: newC.reduce((a, b) => a + (b.qty ? b.qty : 0), 0) }))
     },
 
@@ -82,7 +83,7 @@ export const useProductStore = create<{
         newCart = newCart.filter(pinfo => pinfo.id !== id)
         console.log("rm:newCart::", newCart)
         const subtotal = newCart.reduce((prev, current) => prev + (current.price * current.qty!), 0).toFixed(2)
-        const total = (parseFloat(subtotal) + parseFloat(get().discount ?? "0")).toFixed(2)
+        const total = (calculateDiscount(get().discount ?? "0", subtotal)).toFixed(2)
         set((state) => ({ cart: newCart, subtotal, total, cartCount: newCart.reduce((a, b) => a + (b.qty ? b.qty : 0), 0) }))
     },
 
@@ -92,7 +93,7 @@ export const useProductStore = create<{
 
     setDiscount: (val: string, discountCode: string) => {
         const subtotal = get().cart.reduce((prev, current) => prev + (current.price * current.qty!), 0).toFixed(2)
-        const total = (parseFloat(subtotal) + (val ? parseFloat(val) : 0)).toFixed(2)
+        const total = (calculateDiscount(val ? val : "0",subtotal)).toFixed(2)
         set((state) => ({ subtotal, total, discount: val, discountCode }))
     },
 
@@ -105,7 +106,7 @@ export const useProductStore = create<{
             total: "0",
             discount: "0",
             discountCode: "",
-            cid:""
+            cid: ""
         }))
     }
 }));

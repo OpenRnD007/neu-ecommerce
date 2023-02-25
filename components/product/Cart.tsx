@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import { Dialog, Transition } from '@headlessui/react'
 import { ICart, useProductStore } from './store';
 import { getDiscountCoupon, placeOrder } from './store/apireq';
+import { calculateDiscount } from '../utils';
 
 const Cart = () => {
     const showCart = useProductStore((state) => state.showCart);
@@ -134,7 +135,7 @@ const CartFooter = () => {
             </div>
             <div className="flex justify-between text-base font-normal text-gray-900 py-1">
                 <p>Discount</p>
-                <p>${discount ?? 0}</p>
+                <p>-{discount ?? 0}% {discount && parseFloat(discount) > 0 ? `= -\$${calculateDiscount(discount, subtotal, true).toFixed(2)}` : ''}</p>
             </div>
             {discountCode && discountCode?.length > 0 &&
                 <div className="flex justify-between text-base font-normal text-gray-900 py-1">
